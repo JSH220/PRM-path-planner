@@ -15,7 +15,8 @@ class PRM(object):
         self.edge = [] #Edge Set, may not be neccessary 
         self.TwoDMatrix = None
         self.botRadius = 0
-
+        self.imageName=''
+        self.obstValue=130
     # isWayBlocked : ((int, int), (int, int)) -> bool
     # isWayBlocked, given two point in the Image, check if the line between 
     # the two point is blocked by obstacles  
@@ -31,13 +32,10 @@ class PRM(object):
     def onObstable(self, x,y):
         for cy in range (y-self.botRadius, y+self.botRadius+1):
             for cx in range (x-self.botRadius, x+self.botRadius+1):
-                if self.outOfIndex(x,y):
-                    pass
-                elif self.TwoDMatrix[cy][cx] < 50:
-                    return True
-                else:
-                    pass    
-        return False       
+                if self.TwoDMatrix[cy][cx] < 50 and not self.outOfIndex(cx,cy):
+                    return True  
+        return False      
+
     def isWayBlocked(self, p1, p2):
         (ix1, iy1) = p1
         (ix2, iy2) = p2
@@ -45,55 +43,63 @@ class PRM(object):
         x2 = max(float(ix1),float(ix2))
         y1 = min(float(iy1),float(iy2))
         y2 = max(float(iy1),float(iy2))
+
+        # image=cv2.imread(self.imageName)
+
         if x1==x2 and y1==y2:
-   
             return False
         elif x1 == x2:       
-
             for currentY in range(int(y1), int(y2)):
                 for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.outOfIndex(x1+offset, currentY):
-                        pass 
-                    elif  self.TwoDMatrix[currentY][int(x1)+offset] < 50: 
+                    if self.TwoDMatrix[currentY][int(x1)+offset] < 50 and not self.outOfIndex(x1+offset, currentY): 
                         return True  
-                    else:
-                        pass
-        elif y1 == y2: 
 
+        elif y1 == y2: 
             for currentX in range(int(x1), int(x2)):
                 for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.outOfIndex(currentX, y1+offset): 
-                        pass
-                    elif  self.TwoDMatrix[int(y1)+offset][currentX] < 50: 
+                    if  self.TwoDMatrix[int(y1)+offset][currentX] < 50 and not self.outOfIndex(currentX, y1+offset): 
                         return True
-                    else:
-                        pass    
+ 
         else:    
-
             slopeYX = (y2 - y1)/(x2 - x1)
             for currentX in range(int(x1),int(x2)):
                 currentY = int(y1 + slopeYX * (currentX - x1))
+                # if currentX == int((x1 + x2)/2):
+                #     cv2.line(image, (currentX, currentY - self.botRadius), (currentX, currentY + self.botRadius), (0,255,0),3)
+                #     cv2.line(image, p1, p2, (255,0,0), 1)
+                #     cv2.imshow('images',image)
+                #     cv2.waitKey(0) 
+
                 for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.outOfIndex(currentX, currentY+offset): 
-                        pass
-                    elif  self.TwoDMatrix[currentY+offset][currentX] < 50: 
+                    if  self.TwoDMatrix[currentY+offset][currentX] < 50 and not self.outOfIndex(currentX, currentY+offset): 
                         return True
-                    else:
-                        pass 
+
             slopeXY = (x2 - x1)/(y2 - y1)            
             for currentY in range(int(y1),int(y2)):
                 currentX = int(x1 + slopeXY * (currentY - y1))
                 for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.outOfIndex(currentX+offset, currentY):
-                        pass 
-                    elif  self.TwoDMatrix[currentY][currentX+offset] < 50: 
+                    if self.TwoDMatrix[currentY][currentX+offset] < 50 and not self.outOfIndex(currentX+offset, currentY): 
                         return True  
-                    else:
-                        pass         
+      
 
-        return False                 
+        return False           
 
+    def testWayBlocked(self, imageName, p1, p2, botRadius):
+        ImgProInstance = ImageProcessing()
+        ImgMatrix = ImgProInstance.TranformJPGto2DArray(imageName)
+        self.TwoDMatrix = ImgMatrix
+        self.botRadius = botRadius
+        self.imageName = imageName
+        
+        
+        blocked = False
+        #bolcked = self.isWayBlocked(p1, p2)
+        if self.isWayBlocked(p1, p2):
+            print("blocked")
+        else:
+            print("not ")
 
+        return 0
     #initialize : (file, int, int) -> 0  (if no problem)
     # initialize, given a imageFilename, and how many points you want to generate
     # for the PRM, and the botRadius, initialize all the values of the instance,
@@ -103,10 +109,17 @@ class PRM(object):
         #extract value from image
         ImgProInstance = ImageProcessing()
         ImgMatrix = ImgProInstance.TranformJPGto2DArray(imageName)
+        # for i in range(0, len(ImgMatrix)):
+        #     for j in range(0, len(ImgMatrix[0])):
+        #         if ImgMatrix[i][j] > 50 and ImgMatrix[i][j] < 200:
+        #             print(ImgMatrix[i][j])
+
+        self.imageName = imageName
         self.TwoDMatrix = ImgMatrix
         self.botRadius = botRadius
         height = len(ImgMatrix)
         width = len(ImgMatrix[0])
+        print(height, width)
         i = 0
         while (i < numberOfPoints):
             x = random.randint(0, width-1)
@@ -119,9 +132,7 @@ class PRM(object):
         for i in range(1, numberOfPoints+1):
             neighbors = []
             for j in range(1, numberOfPoints+1):
-                if self.vertex[i][2] < 50 or self.vertex[j][2] < 50:  
-                    pass
-                elif i == j: 
+                if i == j: 
                     pass        
                 elif self.isWayBlocked(self.vertex[i][1], self.vertex[j][1]):
                     pass
@@ -177,7 +188,7 @@ class PRM(object):
         return resultRoad
 
     def draw(self,result):
-        test = cv2.imread('test.jpg')
+        test = cv2.imread(self.imageName)
         for (index, (x,y)) in result:
             cv2.circle(test, (x,y), 10, (0,0,255))
         
@@ -188,6 +199,10 @@ class PRM(object):
 
         for (index, (x,y)) in graph_node:
             cv2.circle(test, (x,y), 5, (0,255,0))
+        for edge_draw in self.edge:
+            cv2.line(test, edge_draw[0][1], edge_draw[1][1], (255,0,0), 1)
+            if self.isWayBlocked(edge_draw[0][1], edge_draw[1][1]):
+                print("failed!!!!!!!!!!!!!!!!!")
 
         cv2.imshow('images',test)
         cv2.waitKey(0)    
@@ -203,6 +218,7 @@ if __name__ == '__main__':
     # cv2.waitKey()
 
     prm = PRM()
+    # prm.testWayBlocked(image_name,(200,35), (35, 650),5)
     prm.initialize(image_name, 20, 2)
     result= prm.findWay(start_point,end_point)
     prm.draw(result)
