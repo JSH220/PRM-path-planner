@@ -7,6 +7,8 @@ class PRM(object):
     def __init__(self): 
         #represent graph as Ajacency list
         # to get all neighbors, just call self.graph[index]
+        self.start_point = ()
+        self.target_point = ()
         self.graph = [None]
         self.vertex = [None]
         #Vertex Set, vertex as form (index, (x, y), grayscale), remember to get value of (x,y)
@@ -18,6 +20,7 @@ class PRM(object):
         self.imageName = ''
         self.obstValue = 130
         self.avoidBuffer = 3
+        self.success = False
     # isWayBlocked : ((int, int), (int, int)) -> bool
     # isWayBlocked, given two point in the Image, check if the line between 
     # the two point is blocked by obstacles  
@@ -169,6 +172,9 @@ class PRM(object):
     def findWay(self, p1, p2):
         (x1,y1) = p1
         (x2,y2) = p2
+        self.start_point = p1
+        self.target_point = p2
+
         if self.onObstable(x1,y1): 
             print("sorry, you start at an obstable")
             return -1
@@ -194,7 +200,10 @@ class PRM(object):
                      
         AstarInstance = AStar()
         resultRoad = AstarInstance.run(self.graph, (0,(x1,y1)),(len(self.vertex)-1, (x2,y2)), "temp.txt")
-        resultRoad.insert(0, (0, (x1,y1)))
+        if not resultRoad == -1:
+            resultRoad.insert(0, (0, (x1,y1)))
+            self.success = True
+
         self.vertex[0] = None
         self.vertex.pop()
         # self.graph[0] = None
@@ -214,20 +223,23 @@ class PRM(object):
         for edge_draw in self.edge:
             cv2.line(test, edge_draw[0][1], edge_draw[1][1], (255,0,0), 1)
 
+        if self.success:
+            for (index, (x,y)) in result:
+                cv2.circle(test, (x,y), 3, (0, 0, 255), -1)
 
-        for (index, (x,y)) in result:
-            cv2.circle(test, (x,y), 3, (0, 0, 255), -1)
-
-        i = 0
-        while i < len(result) - 1:
-            cv2.line(test, result[i][1], result[i+1][1], (0,0,255), 2)
-            i += 1
+            i = 0
+            while i < len(result) - 1:
+                cv2.line(test, result[i][1], result[i+1][1], (0,0,255), 2)
+                i += 1
+        else:
+            cv2.circle(test, self.start_point, 3, (0,0,255), -1)
+            cv2.circle(test, self.target_point, 3, (0,0,255), -1)
 
         cv2.imshow('images',test)
         cv2.waitKey(0)    
 
 if __name__ == '__main__':
-    image_name = 'test1.jpg'
+    image_name = 'test4.jpg'
     start_point=(35,35)
     end_point=(850,650)
 
