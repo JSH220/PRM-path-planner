@@ -15,8 +15,9 @@ class PRM(object):
         self.edge = [] #Edge Set, may not be neccessary 
         self.TwoDMatrix = None
         self.botRadius = 0
-        self.imageName=''
-        self.obstValue=130
+        self.imageName = ''
+        self.obstValue = 130
+        self.avoidBuffer = 3
     # isWayBlocked : ((int, int), (int, int)) -> bool
     # isWayBlocked, given two point in the Image, check if the line between 
     # the two point is blocked by obstacles  
@@ -30,58 +31,68 @@ class PRM(object):
             return True
         return False  
     def onObstable(self, x,y):
-        for cy in range (y-self.botRadius, y+self.botRadius+1):
-            for cx in range (x-self.botRadius, x+self.botRadius+1):
-                if self.TwoDMatrix[cy][cx] < 50 and not self.outOfIndex(cx,cy):
+        for cy in range (y-self.botRadius - self.avoidBuffer, y+self.botRadius + self.avoidBuffer):
+            for cx in range (x - self.botRadius - self.avoidBuffer, x + self.botRadius + self.avoidBuffer):
+                if (not self.outOfIndex(cx,cy)) and self.TwoDMatrix[cy][cx] < 50:
                     return True  
         return False      
 
     def isWayBlocked(self, p1, p2):
-        (ix1, iy1) = p1
-        (ix2, iy2) = p2
-        x1 = min(float(ix1),float(ix2))
-        x2 = max(float(ix1),float(ix2))
-        y1 = min(float(iy1),float(iy2))
-        y2 = max(float(iy1),float(iy2))
+        (x1, y1) = p1
+        (x2, y2) = p2
 
-        # image=cv2.imread(self.imageName)
-
-        if x1==x2 and y1==y2:
+        if x1 == x2 and y1 == y2:
             return False
-        elif x1 == x2:       
-            for currentY in range(int(y1), int(y2)):
-                for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.TwoDMatrix[currentY][int(x1)+offset] < 50 and not self.outOfIndex(x1+offset, currentY): 
-                        return True  
+        elif x1 == x2:
+            y_start = min(y1, y2)
+            y_end = max(y1, y2)
+            currentY = y_start
+            while currentY < y_end:
+                if self.onObstable(x1, currentY):
+                    return True
+                currentY += self.botRadius
 
         elif y1 == y2: 
-            for currentX in range(int(x1), int(x2)):
-                for offset in range(-self.botRadius, self.botRadius+2):
-                    if  self.TwoDMatrix[int(y1)+offset][currentX] < 50 and not self.outOfIndex(currentX, y1+offset): 
-                        return True
- 
+            x_start = min(x1, x2)
+            x_end = max(x1, x2)
+            currentX = x_start
+            while currentX < x_end:
+                if self.onObstable(currentX, y1):
+                    return True
+                currentX += self.botRadius
         else:    
             slopeYX = (y2 - y1)/(x2 - x1)
-            for currentX in range(int(x1),int(x2)):
-                currentY = int(y1 + slopeYX * (currentX - x1))
-                # if currentX == int((x1 + x2)/2):
-                #     cv2.line(image, (currentX, currentY - self.botRadius), (currentX, currentY + self.botRadius), (0,255,0),3)
-                #     cv2.line(image, p1, p2, (255,0,0), 1)
-                #     cv2.imshow('images',image)
-                #     cv2.waitKey(0) 
+            if x1 < x2:
+                x_start = x1
+                x_end = x2
+                y_start = y1
+            else:
+                x_start = x2
+                x_end = x1
+                y_start = y2
 
-                for offset in range(-self.botRadius, self.botRadius+2):
-                    if  self.TwoDMatrix[currentY+offset][currentX] < 50 and not self.outOfIndex(currentX, currentY+offset): 
-                        return True
+            currentX = x_start
+            while currentX < x_end:
+                currentY = int(y_start + slopeYX * (currentX - x_start))
+                if self.onObstable(currentX, currentY):
+                    return True
+                currentX += self.botRadius
 
-            slopeXY = (x2 - x1)/(y2 - y1)            
-            for currentY in range(int(y1),int(y2)):
-                currentX = int(x1 + slopeXY * (currentY - y1))
-                for offset in range(-self.botRadius, self.botRadius+2):
-                    if self.TwoDMatrix[currentY][currentX+offset] < 50 and not self.outOfIndex(currentX+offset, currentY): 
-                        return True  
-      
-
+            slopXY = (x2 - x1)/(y2 - y1)
+            if y1 < y2:
+                y_start = y1
+                y_end = y2
+                x_start = x1
+            else:
+                y_start = y2
+                y_end = y1
+                x_start = x2
+            currentY = y_start
+            while currentY < y_end:
+                currentX = int(x_start + slopXY * (currentY - y_start))
+                if self.onObstable(currentX, currentY):
+                    return True
+                currentY += self.botRadius
         return False           
 
     def testWayBlocked(self, imageName, p1, p2, botRadius):
@@ -90,15 +101,18 @@ class PRM(object):
         self.TwoDMatrix = ImgMatrix
         self.botRadius = botRadius
         self.imageName = imageName
-        
-        
+        image = cv2.imread(imageName)
+        cv2.line(image, p1, p2, (255,0,0), botRadius)
+
+
         blocked = False
         #bolcked = self.isWayBlocked(p1, p2)
         if self.isWayBlocked(p1, p2):
             print("blocked")
         else:
             print("not ")
-
+        cv2.imshow('images',image)
+        cv2.waitKey(0)
         return 0
     #initialize : (file, int, int) -> 0  (if no problem)
     # initialize, given a imageFilename, and how many points you want to generate
@@ -189,28 +203,33 @@ class PRM(object):
 
     def draw(self,result):
         test = cv2.imread(self.imageName)
-        for (index, (x,y)) in result:
-            cv2.circle(test, (x,y), 10, (0,0,255))
-        
+
         graph_node=[]
         for li in self.graph:
             graph_node += li
         graph_node = set(graph_node)
 
         for (index, (x,y)) in graph_node:
-            cv2.circle(test, (x,y), 5, (0,255,0))
+            cv2.circle(test, (x,y), 2, (255,0,0),-1)
         for edge_draw in self.edge:
             cv2.line(test, edge_draw[0][1], edge_draw[1][1], (255,0,0), 1)
-            if self.isWayBlocked(edge_draw[0][1], edge_draw[1][1]):
-                print("failed!!!!!!!!!!!!!!!!!")
+
+
+        for (index, (x,y)) in result:
+            cv2.circle(test, (x,y), 3, (0, 0, 255), -1)
+
+        i = 0
+        while i < len(result) - 1:
+            cv2.line(test, result[i][1], result[i+1][1], (0,0,255), 2)
+            i += 1
 
         cv2.imshow('images',test)
         cv2.waitKey(0)    
 
 if __name__ == '__main__':
-    image_name = 'test.jpg'
+    image_name = 'test1.jpg'
     start_point=(35,35)
-    end_point=(200,650)
+    end_point=(850,650)
 
     # test = cv2.imread('test.jpg')
     # cv2.circle(test, (200,650), 5, (0,0,255)) 
@@ -218,7 +237,7 @@ if __name__ == '__main__':
     # cv2.waitKey()
 
     prm = PRM()
-    # prm.testWayBlocked(image_name,(200,35), (35, 650),5)
+    # prm.testWayBlocked(image_name,(135,35), (120, 550),5)
     prm.initialize(image_name, 20, 2)
     result= prm.findWay(start_point,end_point)
     prm.draw(result)
